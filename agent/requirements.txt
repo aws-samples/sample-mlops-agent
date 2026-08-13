@@ -9,7 +9,7 @@ openinference-semantic-conventions
 otel-instrumentation-claude-agent-sdk==0.0.3
 pydantic==2.11.1
 # 2.32.4 fixes GHSA-9hjg-9r4m-mvj7 (.netrc credential leak via malicious URLs)
-requests==2.32.4
+requests==2.33.0
 ruff==0.11.2
 pytest==8.3.5
 pytest-asyncio==0.25.3
