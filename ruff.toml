@@ -1,0 +1,6 @@
+# Pin the lint gate to an explicit rule set. ruff 0.16 expanded its default
+# selection (I001, BLE001, RUF100, …), which broke CI (pipeline 3115653)
+# without any code change — an explicit select keeps the gate stable across
+# ruff releases. Broaden deliberately, not by upgrade side-effect.
+[lint]
+select = ["E4", "E7", "E9", "F"]

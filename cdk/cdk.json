@@ -1,0 +1,24 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/app.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "package*.json",
+      "yarn.lock",
+      "node_modules",
+      "lib/**/*.d.ts",
+      ".git",
+      ".gitignore"
+    ]
+  },
+  "context": {
+    "projectName": "sample-mlops-agent",
+    "availability-zones:account=PLACEHOLDER:region=us-east-1": [
+      "us-east-1a",
+      "us-east-1b",
+      "us-east-1c"
+    ]
+  }
+}

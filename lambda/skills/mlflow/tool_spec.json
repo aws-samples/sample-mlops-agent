@@ -1,0 +1,124 @@
+[
+  {
+    "name": "list_scorers",
+    "description": "Return the live catalog of MLflow built-in judge scorers by introspecting mlflow.genai.scorers at runtime. The agent MUST call this before submit_eval_job whenever the user provides scorer names in plain English (e.g. 'faithfulness', 'answer relevance', 'correctness') — match the user's vocabulary against the returned {name, doc} list using the docstring text, then pass ONLY canonical `name` values verbatim to submit_eval_job. If the semantic match is ambiguous (two scorers look like plausible fits, or no scorer clearly matches), prompt the user to disambiguate; do NOT guess. The SageMaker eval container accepts canonical names only and will raise a ValueError listing valid names on any unknown input.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "query_metrics",
+    "description": "Fetch all metrics for a specific MLflow run by run ID.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "run_id": { "type": "string", "description": "MLflow run ID" }
+      },
+      "required": ["run_id"]
+    }
+  },
+  {
+    "name": "retrieve_traces",
+    "description": "List recent MLflow runs for an experiment, with status and metrics summary.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "experiment_name": {
+          "type": "string",
+          "description": "MLflow experiment name"
+        },
+        "max_results": {
+          "type": "number",
+          "description": "Max runs to return (default: 10)"
+        }
+      },
+      "required": ["experiment_name"]
+    }
+  },
+  {
+    "name": "analyze_trace",
+    "description": "Return full run data (params, metrics, tags, status) for a single MLflow run.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "run_id": { "type": "string", "description": "MLflow run ID" }
+      },
+      "required": ["run_id"]
+    }
+  },
+  {
+    "name": "generate_compliance_report",
+    "description": "Render a compliance report for a completed LLM evaluation run. Caller (compliance-documentation skill) authors the narrative (title, sections, findings); this tool writes markdown + .docx to S3 and stamps the thread row's eval job entry with compliance_report_s3_uri / compliance_report_format / compliance_report_at. Auto-appends the worst N failing rows from the run's eval_results.parquet artifact when appendix_failing_rows is omitted.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string",
+          "description": "Thread ID (PK of the DynamoDB thread row). Always pass CURRENT_THREAD_ID."
+        },
+        "job_id": {
+          "type": "string",
+          "description": "Eval job_id from submit_eval_job — identifies the jobs.<job_id> map entry to stamp."
+        },
+        "run_id": {
+          "type": "string",
+          "description": "MLflow run ID the report describes. Used to pull metrics and the eval_results.parquet appendix."
+        },
+        "title": {
+          "type": "string",
+          "description": "Report title (default: \"LLM Evaluation Compliance Report\")"
+        },
+        "sections": {
+          "type": "array",
+          "description": "Ordered narrative sections. Each {heading, body} pair becomes an H2 in the markdown and a Heading 1 in the .docx.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "heading": { "type": "string" },
+              "body": { "type": "string" }
+            },
+            "required": ["heading", "body"]
+          }
+        },
+        "findings": {
+          "type": "array",
+          "description": "Pass/fail findings. Rendered as coloured PASS/FAIL/?? tags in the .docx.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "status": {
+                "type": "string",
+                "enum": ["PASS", "FAIL", "PARTIAL", "UNKNOWN"]
+              },
+              "body": { "type": "string" }
+            },
+            "required": ["name", "status", "body"]
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Metric name → value. Rendered as a two-column Metrics Summary table.",
+          "additionalProperties": true
+        },
+        "appendix_failing_rows": {
+          "type": "array",
+          "description": "Override the auto-pulled worst-N appendix with explicit rows. Omit in the normal case.",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        "formats": {
+          "type": "array",
+          "description": "Subset of [\"md\",\"docx\"]. Default: both.",
+          "items": { "type": "string", "enum": ["md", "docx"] }
+        },
+        "out_s3_prefix": {
+          "type": "string",
+          "description": "S3 prefix for the report artifacts (default: compliance-reports/<thread_id>/<job_id>)"
+        }
+      },
+      "required": ["thread_id", "job_id", "run_id", "sections"]
+    }
+  }
+]

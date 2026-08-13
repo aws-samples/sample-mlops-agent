@@ -1,0 +1,22 @@
+# semgrep path exclusions (NOTE: .semgrepignore is path-only — semgrep does
+# not support excluding by rule ID here; per-line suppressions use
+# `# nosemgrep: <rule-id>` comments instead). Only list files whose findings
+# are 100% noise, so real rules keep running everywhere else.
+# Triage rationale: docs/security_reports/2026-07-26-probe-scan-triage.md.
+
+# package-dependencies-check x19 — ^-range dependencies are conventional;
+# package-lock.json pins the actual resolution. These manifests trigger no
+# other rule.
+cdk/package.json
+frontend/package.json
+
+# Test suites — semgrep's BUILT-IN default ignore list excludes tests/, but
+# providing a custom .semgrepignore replaces that list entirely; omitting
+# this entry in the first revision surfaced 22 new findings (poll-loop
+# sleeps, by-path test imports) that are test mechanics, not shipped code.
+tests/
+
+# Default semgrep skips (kept explicit — providing a .semgrepignore replaces
+# the built-in default list).
+.git/
+:include .gitignore

@@ -1,0 +1,90 @@
+/* Cloudscape global styles are imported in main.tsx.
+   Add any app-level overrides here. */
+
+/* Markdown rendering for AG-UI TEXT_MESSAGE_CHUNK assistant messages */
+.agent-markdown {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-text-body-default, #0f1413);
+  word-break: break-word;
+}
+
+.agent-markdown p {
+  margin: 0 0 8px 0;
+}
+
+.agent-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.agent-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.agent-markdown th,
+.agent-markdown td {
+  border: 1px solid var(--color-border-divider-default, #c6c6cd);
+  padding: 6px 12px;
+  text-align: left;
+}
+
+.agent-markdown th {
+  background: var(--color-background-dropdown-item-default, #f4f4f4);
+  font-weight: 700;
+}
+
+.agent-markdown tr:nth-child(even) td {
+  background: var(--color-background-dropdown-item-hover, #f9f9f9);
+}
+
+.agent-markdown pre {
+  background: var(--color-background-code-editor-default, #0f1b2d);
+  color: var(--color-text-code-editor-default, #d1d5db);
+  border-radius: 4px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.agent-markdown code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+}
+
+/* Inline code (not inside a pre block) */
+.agent-markdown :not(pre) > code {
+  background: var(--color-background-code-editor-default, #f0f0f0);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--color-text-body-default, #0f1413);
+}
+
+.agent-markdown ul,
+.agent-markdown ol {
+  margin: 4px 0 8px 0;
+  padding-left: 20px;
+}
+
+.agent-markdown li {
+  margin-bottom: 2px;
+}
+
+/* Monospace log area inside agent cards */
+.agent-log-box {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-y: auto;
+  max-height: 160px;
+  background: var(--color-background-code-editor-default, #0f1b2d);
+  color: var(--color-text-code-editor-default, #d1d5db);
+  padding: 8px 12px;
+  border-radius: 4px;
+  line-height: 1.5;
+}

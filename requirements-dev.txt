@@ -1,0 +1,39 @@
+# Local / CI test + lint dependencies.
+#   pip install -r requirements-dev.txt
+#   python -m pytest tests/ lambda/tests/ -m "not functional"
+# Heavy runtime deps (mlflow, transformers, torch) are stubbed inside the
+# tests themselves and are deliberately NOT listed here.
+pytest>=8
+# Exact pin: ruff minor releases can change the default/selected rule set
+# (0.16 broke CI); bump deliberately together with ruff.toml.
+ruff==0.15.20
+
+# Skill handler + callback Lambda tests import boto3 directly.
+boto3>=1.34
+
+# tests/test_phase3_gateway.py mocks AWS services with moto (module skips
+# unless the deployed Lambda bundles are extracted to /tmp, but the import
+# must still succeed for collection).
+moto>=5
+
+# tests/test_{xgb,sklearn}_train_emit_baseline.py exercise the _emit_baseline
+# helpers on real DataFrames.
+pandas>=2
+
+# tests/agent/* and tests/test_phase3_gateway.py import agent.main, which
+# pulls in the AgentCore runtime and OTEL packages (claude_agent_sdk itself
+# is stubbed by tests/conftest.py).
+bedrock-agentcore==1.18.1
+opentelemetry-api>=1.25
+opentelemetry-semantic-conventions>=0.46b0
+# tests/agent/test_span_attributes.py captures spans with the OTEL SDK's
+# InMemorySpanExporter (opentelemetry.sdk.*) — a real test dep in CI, not just
+# a runtime container dep.
+opentelemetry-sdk>=1.25
+
+# tests/test_custom_scorers.py exercises the math_correctness reference
+# scorer's real symbolic-equivalence path (e.g. "2*2" ≡ "4"). sympy is that
+# scorer's declared runtime dep (see .../math_correctness/requirements.txt)
+# and is pure-Python/lightweight — unlike torch/mlflow it is installed, not
+# stubbed, so CI verifies the sympy path instead of silently string-comparing.
+sympy>=1.12

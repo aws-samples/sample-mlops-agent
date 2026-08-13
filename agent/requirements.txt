@@ -1,0 +1,15 @@
+claude-agent-sdk==0.1.48
+bedrock-agentcore==1.18.1
+boto3==1.43.68
+opentelemetry-sdk==1.40.0
+opentelemetry-api==1.40.0
+aws-opentelemetry-distro
+openinference-instrumentation-bedrock
+openinference-semantic-conventions
+otel-instrumentation-claude-agent-sdk==0.0.3
+pydantic==2.11.1
+# 2.32.4 fixes GHSA-9hjg-9r4m-mvj7 (.netrc credential leak via malicious URLs)
+requests==2.32.4
+ruff==0.11.2
+pytest==8.3.5
+pytest-asyncio==0.25.3

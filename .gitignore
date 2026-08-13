@@ -1,0 +1,30 @@
+.worktrees/
+node_modules
+__pycache__/
+*.pyc
+*.log
+.venv/
+.env
+.env.local
+cdk.out/
+dist/
+.DS_Store
+# Root-anchored: only the session-local .claude/ at the repo root — the
+# unanchored form also matched agent/.claude/, the agent's tracked skill
+# definitions that ship in the container image.
+/.claude/
+.pytest_cache/
+.ruff_cache/
+
+
+# Local exploration — downloaded reference repos / notebooks not owned by this project
+samples/
+notebooks/
+
+# Local-only working docs — the entire docs/ tree (plans, QA records, security
+# scanner output, reference notes) stays out of the shared repo. Previously
+# tracked files were untracked with `git rm -r --cached docs/`; they remain on
+# disk locally and recoverable from git history.
+docs/
+
+lambda/callback/.build/

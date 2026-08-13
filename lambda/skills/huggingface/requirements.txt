@@ -1,0 +1,4 @@
+boto3==1.42.89
+huggingface_hub==0.34.4
+datasets>=3.1.0
+requests==2.33.1

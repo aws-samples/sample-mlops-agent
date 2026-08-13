@@ -1,0 +1,34 @@
+[
+  {
+    "name": "web_search",
+    "description": "Search the live web for a natural-language query. Uses Amazon Nova Web Grounding (via the Bedrock Converse API's systemTool mechanism) as the primary backend and transparently falls back to DuckDuckGo if Nova Grounding errors out. Returns a list of results, each with {index, title, snippet, link}; Nova Grounding results additionally include a `sources` array of citation URLs the model grounded its answer on. When the DDG fallback fires, the response carries `fallback: \"ddg\"`. Use this tool when the agent needs up-to-date facts (library versions, API compatibility, pricing, news) before making a decision — NOT for looking up model IDs on HuggingFace (use the HuggingFace skill) or for retrieving MLflow scorer catalogs (use mlflow-skill___list_scorers).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Natural-language search query, e.g. 'latest stable TRL version pypi 2026' or 'SageMaker PyTorch 2.4 supported instance types'."
+        }
+      },
+      "required": ["query"]
+    }
+  },
+  {
+    "name": "fetch",
+    "description": "Fetch a specific URL and return its content as readable text. HTML responses are stripped to plain text (scripts, styles, nav chrome removed); JSON and plain-text responses pass through unchanged. Content is truncated to `max_length` chars; set `truncated: true` on the response when truncation kicks in. Prefer this over web_search when you already have a URL (from a previous web_search result, from a user-provided link, or from a citation). Do NOT use this to download large datasets or model weights — it's for readable-size documents only.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Absolute URL to fetch, e.g. https://pypi.org/project/trl/."
+        },
+        "max_length": {
+          "type": "integer",
+          "description": "Truncation cap in characters for the returned content (default: 5000)."
+        }
+      },
+      "required": ["url"]
+    }
+  }
+]
