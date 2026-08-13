@@ -1,5 +1,5 @@
 boto3==1.42.89
-mlflow==3.11.1
+mlflow==3.13.0rc0
 sagemaker-mlflow==0.5.0
 pandas>=2.2,<3
 pyarrow>=17.0.0
