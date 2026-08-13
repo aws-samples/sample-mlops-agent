@@ -1,0 +1,63 @@
+[
+  {
+    "name": "list_nodes",
+    "description": "List nodes in a SageMaker HyperPod cluster. Read-only — no cost, no confirmation required. Returns each node's id, instance group, instance type, and status. Call this first when the user asks to audit a cluster, to check health, or to pick nodes for version_check.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cluster_name": {
+          "type": "string",
+          "description": "Name of the HyperPod cluster. describe_cluster resolves it to an ARN + cluster id."
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "Authenticated user id — always pass the value of the CURRENT_USER_ID env var."
+        }
+      },
+      "required": ["cluster_name", "_user_id"]
+    }
+  },
+  {
+    "name": "check_versions",
+    "description": "Audit installed software versions on HyperPod cluster nodes via SSM. Read-only. Pushes a bundled shell script through AWS-RunShellScript per node, rate-limited to 3 TPS, and returns a per-node map of category → version for the standard HPC stack: CUDA, cuDNN, NCCL, EFA, AWS OFI NCCL, GDRCopy, MPI, Neuron SDK, Python, PyTorch, container runtime. Non-interactive only (no TTY commands). 60 s per-node timeout.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cluster_name": {
+          "type": "string",
+          "description": "Name of the HyperPod cluster."
+        },
+        "instance_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional list of specific node ids to audit. Omit to audit every InService node returned by list_nodes. Use this to sample (e.g. first 3 nodes) on large clusters."
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "cuda",
+              "cudnn",
+              "nccl",
+              "efa",
+              "ofi-nccl",
+              "gdrcopy",
+              "mpi",
+              "neuron",
+              "python",
+              "pytorch",
+              "runtime"
+            ]
+          },
+          "description": "Optional list of categories to collect. Omit to collect all. Narrow the scope on large clusters to stay under the 60 s per-node timeout."
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "Authenticated user id — always pass the value of the CURRENT_USER_ID env var."
+        }
+      },
+      "required": ["cluster_name", "_user_id"]
+    }
+  }
+]

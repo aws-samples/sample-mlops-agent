@@ -1,0 +1,247 @@
+[
+  {
+    "name": "upload_model",
+    "description": "Upload a trained model artifact from S3 to HuggingFace Hub.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "artifact_s3": {
+          "type": "string",
+          "description": "S3 URI of model.tar.gz artifact"
+        },
+        "repo_id": {
+          "type": "string",
+          "description": "HuggingFace repo ID, e.g. org/model-name"
+        },
+        "private": {
+          "type": "boolean",
+          "description": "Create private repo (default: false)"
+        }
+      },
+      "required": [
+        "artifact_s3",
+        "repo_id"
+      ]
+    }
+  },
+  {
+    "name": "hf_snapshot_download",
+    "description": "Stage a HuggingFace model or small dataset snapshot into S3 and return a file manifest {s3_uri, repo_id, repo_type, revision, files:[{path,size_bytes,s3_key}]}. Use for model weights or small repos; very large datasets should go through prepare_eval_dataset + the Processing container instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo_id": {
+          "type": "string",
+          "description": "HuggingFace repo ID, e.g. org/model-name"
+        },
+        "s3_prefix": {
+          "type": "string",
+          "description": "S3 key prefix destination, e.g. models/qwen3-4b"
+        },
+        "repo_type": {
+          "type": "string",
+          "enum": [
+            "model",
+            "dataset"
+          ],
+          "description": "Repository type (default: model)"
+        },
+        "allow_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional glob patterns to include (e.g. ['*.parquet'])"
+        },
+        "ignore_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional glob patterns to exclude"
+        },
+        "revision": {
+          "type": "string",
+          "description": "Git revision (branch, tag, or commit SHA)"
+        }
+      },
+      "required": [
+        "repo_id",
+        "s3_prefix"
+      ]
+    }
+  },
+  {
+    "name": "retrieve_dataset_metadata",
+    "description": "Fetch a HuggingFace dataset's splits, column schema, and optional tiny sample rows (≤50) via the HuggingFace Datasets Server REST API. No parquet download, no Lambda disk IO — this is a pure metadata call. Use BEFORE submit_training_job or prepare_eval_dataset to resolve the correct train_split / test_split names (e.g. HuggingFaceH4/ultrachat_200k → train_sft/test_sft, not train/test) and to pick input_columns / expectation_columns / context_columns for the eval spec. Returns {dataset_name, split, requested_split, config, columns, available_splits, available_configs, records, count, card_excerpt, preview:true, preview_cap}.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "dataset_name": {
+          "type": "string",
+          "description": "HuggingFace dataset repo ID, e.g. PatronusAI/financebench"
+        },
+        "split": {
+          "type": "string",
+          "description": "Dataset split to sample rows from (default: train). If the split doesn't exist, the server falls back to the first available split and returns both `requested_split` and `split` in the response so the agent can reconcile."
+        },
+        "config": {
+          "type": "string",
+          "description": "Optional dataset config / subset name. Defaults to the first config the Datasets Server reports (usually `default`)."
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Restrict returned records (not the schema) to this subset of columns. The full column schema is always returned in `columns`."
+        },
+        "max_rows": {
+          "type": "integer",
+          "description": "How many sample rows to include inline (default 0 = metadata only, 2 HTTP calls). Clamped server-side to 50. Set >0 only when you need to inspect actual values — schema discovery alone doesn't require it."
+        }
+      },
+      "required": [
+        "dataset_name"
+      ]
+    }
+  },
+  {
+    "name": "prepare_eval_dataset",
+    "description": "Author an evaluation spec (JSON) describing how to load and reshape a HuggingFace dataset into the MLflow genai {inputs, expectations} record shape. Writes the spec to S3 and returns its s3_uri; the SageMaker Processing container (via submit_eval_job) reads the spec and materialises the dataset at job time. No dataset download happens here — this is intentional so any size dataset is supported. task_type selects the default column mapping (question_answering|rag|summarization|text_generation|classification); pass input_columns / expectation_columns / context_columns to override.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "task_type": {
+          "type": "string",
+          "enum": [
+            "question_answering",
+            "rag",
+            "summarization",
+            "text_generation",
+            "classification"
+          ],
+          "description": "Evaluation task — picks default input/expectation column mappings"
+        },
+        "dataset_name": {
+          "type": "string",
+          "description": "HuggingFace dataset repo ID, e.g. PatronusAI/financebench"
+        },
+        "split": {
+          "type": "string",
+          "description": "Dataset split (default: train)"
+        },
+        "config": {
+          "type": "string",
+          "description": "Optional dataset config / subset name"
+        },
+        "input_columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Override the default input column candidates for task_type"
+        },
+        "expectation_columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Override the default expectation column candidates for task_type"
+        },
+        "context_columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Column(s) that carry retrieved context for RAG tasks"
+        },
+        "max_rows": {
+          "type": "integer",
+          "description": "Optional cap on records materialised at eval time (0 means all rows)"
+        },
+        "out_s3_prefix": {
+          "type": "string",
+          "description": "S3 prefix where the eval_spec.json is written (default: eval-specs/<dataset>)"
+        },
+        "source_schema": {
+          "type": "string",
+          "enum": [
+            "chat",
+            "sft",
+            "dpo",
+            "tabular-csv"
+          ],
+          "description": "(R3) Source record shape. Optional — when omitted, the eval container infers from the dataset's column names (messages → chat, prompt+chosen+rejected → dpo, text → sft, multi-column → tabular-csv). Pass explicitly to get a handler-side refusal on unsupported target_schema pairs."
+        },
+        "target_schema": {
+          "type": "string",
+          "enum": [
+            "chat",
+            "sft",
+            "dpo",
+            "tabular-csv"
+          ],
+          "description": "(R3) Desired record shape after transformation. When omitted or equal to source_schema, no transformation runs. Supported pairs: chat→sft (flatten_messages), sft→chat (unflatten_to_messages), dpo→sft (drop_rejected). Unsupported pairs (chat→dpo, tabular-csv→anything) fail with a clear error before any S3 write."
+        }
+      },
+      "required": [
+        "task_type",
+        "dataset_name"
+      ]
+    }
+  },
+  {
+    "name": "update_model_card",
+    "description": "Update or append to the README.md (model card) on a HuggingFace repo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo_id": {
+          "type": "string",
+          "description": "HuggingFace repo ID"
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown content to write"
+        },
+        "append": {
+          "type": "boolean",
+          "description": "Append instead of overwrite (default: false)"
+        }
+      },
+      "required": [
+        "repo_id",
+        "content"
+      ]
+    }
+  },
+  {
+    "name": "manage_tags",
+    "description": "Add or remove tags on a HuggingFace repo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repo_id": {
+          "type": "string",
+          "description": "HuggingFace repo ID"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags to add or remove"
+        },
+        "remove": {
+          "type": "boolean",
+          "description": "Remove listed tags instead of adding (default: false)"
+        }
+      },
+      "required": [
+        "repo_id",
+        "tags"
+      ]
+    }
+  }
+]

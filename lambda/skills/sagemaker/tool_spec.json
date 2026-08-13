@@ -1,0 +1,400 @@
+[
+  {
+    "name": "submit_training_job",
+    "description": "Submit a SageMaker training job. Pre-creates an MLflow run in RUNNING state so the training container resumes it via MLFLOW_RUN_ID. Returns thread_id, job_id, sagemaker_job_name, mlflow_run_id, and mlflow_run_url.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string",
+          "description": "Thread ID for this conversation (= AgentCore session_id). PK of the DynamoDB thread row."
+        },
+        "model_id": {
+          "type": "string",
+          "description": "HuggingFace model ID, e.g. meta-llama/Llama-3-8b"
+        },
+        "dataset_name": {
+          "type": "string",
+          "description": "HuggingFace dataset name"
+        },
+        "training_type": {
+          "type": "string",
+          "description": "Training algorithm \u2014 LLM fine-tuning: grpo|sft|dpo; tabular: xgboost|sklearn (default: grpo)",
+          "enum": [
+            "grpo",
+            "sft",
+            "dpo",
+            "xgboost",
+            "sklearn"
+          ]
+        },
+        "instance_type": {
+          "type": "string",
+          "description": "SageMaker instance type (default: ml.g5.2xlarge)"
+        },
+        "max_steps": {
+          "type": "number",
+          "description": "Training steps (default: 500)"
+        },
+        "learning_rate": {
+          "type": "number",
+          "description": "Learning rate (default: 1e-5)"
+        },
+        "max_samples": {
+          "type": "number",
+          "description": "Max dataset samples to use; 0 means use entire dataset (default: 0)"
+        },
+        "train_split": {
+          "type": "string",
+          "description": "HuggingFace split name for the training set (default: train). Override when the dataset uses non-canonical splits, e.g. HuggingFaceH4/ultrachat_200k \u2192 train_sft. Resolve from the mandatory pre-flight EDA via huggingface-skill___retrieve_dataset_metadata."
+        },
+        "test_split": {
+          "type": "string",
+          "description": "HuggingFace split name for the eval/test set (default: test). Override when the dataset uses non-canonical splits, e.g. HuggingFaceH4/ultrachat_200k \u2192 test_sft. Resolve from the mandatory pre-flight EDA via huggingface-skill___retrieve_dataset_metadata."
+        },
+        "max_depth": {
+          "type": "number",
+          "description": "XGBoost only \u2014 maximum tree depth (default: 6). Ignored by non-xgboost training_type values."
+        },
+        "n_estimators": {
+          "type": "number",
+          "description": "XGBoost only \u2014 number of boosting rounds / trees (default: 100). Ignored by non-xgboost training_type values."
+        },
+        "target_column": {
+          "type": "string",
+          "description": "Tabular training (xgboost/sklearn) only \u2014 name of the label column in the loaded DataFrame. Required when dataset_name is an s3:// URI or HuggingFace repo id; defaults to 'target' for bundled sklearn datasets (iris, breast_cancer, wine, digits). Ignored by LLM training_type values."
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "Authenticated user id \u2014 always pass the value of the CURRENT_USER_ID env var. Stored on the DynamoDB thread row for attribution."
+        }
+      },
+      "required": [
+        "thread_id",
+        "model_id",
+        "dataset_name"
+      ]
+    }
+  },
+  {
+    "name": "complete_training_job",
+    "description": "Retrieve final status and model artifact S3 URI for a SageMaker training job.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sagemaker_job_name": {
+          "type": "string",
+          "description": "SageMaker training job name"
+        }
+      },
+      "required": [
+        "sagemaker_job_name"
+      ]
+    }
+  },
+  {
+    "name": "deploy_model",
+    "description": "Deploy a trained model artifact to a SageMaker real-time inference endpoint, OR (R5, target='bedrock') import it into Bedrock Custom Model Import. Bedrock import is async and resumes the agent thread via the bedrock-import poller (15-min schedule); the SageMaker path is sync.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sagemaker_job_name": {
+          "type": "string",
+          "description": "Training job whose artifact to deploy"
+        },
+        "endpoint_name": {
+          "type": "string",
+          "description": "Name for the new endpoint (sagemaker target only)"
+        },
+        "instance_type": {
+          "type": "string",
+          "description": "Inference instance type (default: ml.m5.xlarge; sagemaker target only)"
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "sagemaker",
+            "bedrock"
+          ],
+          "description": "(R5) Deploy target. 'sagemaker' (default) creates a SageMaker real-time endpoint \u2014 returns endpoint_name + endpoint_url. 'bedrock' imports the model artifact into Bedrock Custom Model Import \u2014 returns bedrock_model_name + import_job_arn + job_id. Bedrock import is async; the bedrock-import poller (15-min schedule) resumes the agent thread on terminal status."
+        },
+        "bedrock_model_name": {
+          "type": "string",
+          "description": "(R5, bedrock target only) Name for the imported Bedrock model. Must match ^[a-zA-Z0-9-_.]+$ and be \u2264 63 chars. Default: the SageMaker training job name with non-alphanumerics replaced by '-'."
+        },
+        "thread_id": {
+          "type": "string",
+          "description": "(R5, bedrock target only) Always pass CURRENT_THREAD_ID so the poller can resume the right session when the Bedrock import reaches a terminal state. Ignored when target='sagemaker'."
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "(R5, bedrock target only) Always pass CURRENT_USER_ID so the poller resume call carries the original user identity. Ignored when target='sagemaker'."
+        }
+      },
+      "required": [
+        "sagemaker_job_name"
+      ]
+    }
+  },
+  {
+    "name": "list_hub_models",
+    "description": "List SageMaker Hub models available for fine-tuning. Returns name, version, EULA status, supported recipes, license, and ARN for each. Read-only \u2014 no cost, no confirmation required. Call this before `submit_training_job` when the user has not named a specific model, or when they ask `what models are available`. When a returned model has `requires_eula=true`, follow the EULA hard-rule in planning/SKILL.md before any submit.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "hub_name": {
+          "type": "string",
+          "description": "SageMaker Hub to enumerate (default: SageMakerPublicHub). Omit to use the public hub; pass a private hub name for tenant-scoped discovery."
+        },
+        "filter": {
+          "type": "string",
+          "description": "Case-insensitive substring match on HubContentName (e.g. `Llama`, `Nova`, `Qwen`). Omit to return all models."
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "Authenticated user id \u2014 always pass the value of the CURRENT_USER_ID env var."
+        }
+      },
+      "required": [
+        "_user_id"
+      ]
+    }
+  },
+  {
+    "name": "submit_eval_job",
+    "description": "Launch an async SageMaker Processing job that runs mlflow.genai.evaluate against a Bedrock or SageMaker-endpoint target with a Bedrock judge. Returns immediately with thread_id/job_id/mlflow_run_url; the thread row is updated via EventBridge when the Processing job finishes.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string",
+          "description": "Thread ID for this conversation (= AgentCore session_id). PK of the DynamoDB thread row. Always pass CURRENT_THREAD_ID."
+        },
+        "eval_dataset_s3_uri": {
+          "type": "string",
+          "description": "JSON eval-spec S3 URI produced by huggingface-skill___prepare_eval_dataset \u2014 the Processing container materialises the dataset inside"
+        },
+        "target_model": {
+          "type": "string",
+          "description": "Model under evaluation. Format: bedrock:/<model_id> (prefer the us.* cross-region inference profile) or sagemaker:/<endpoint_name>"
+        },
+        "judge_model": {
+          "type": "string",
+          "description": "Optional LLM-as-judge override. Format: bedrock:/<model_id>. Defaults to bedrock:/us.anthropic.claude-sonnet-4-5-20250929-v1:0."
+        },
+        "scorers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Safety",
+              "RelevanceToQuery",
+              "Correctness",
+              "Equivalence",
+              "Fluency",
+              "Guidelines",
+              "RetrievalGroundedness",
+              "RetrievalRelevance"
+            ]
+          },
+          "description": "Canonical MLflow scorer class names ONLY. The agent MUST call mlflow-skill___list_scorers first to retrieve the live catalog and reason about which canonical name matches each user-supplied term (e.g. 'faithfulness' \u2192 RetrievalGroundedness, 'answer relevance' \u2192 RelevanceToQuery) by reading the returned docstrings. Pass the resolved canonical names verbatim \u2014 the Processing container rejects plain-English aliases and raises ValueError listing valid names. Guidelines evaluates answer_groundedness by default."
+        },
+        "task": {
+          "type": "string",
+          "enum": [
+            "question_answering",
+            "rag",
+            "summarization",
+            "text_generation",
+            "classification"
+          ],
+          "description": "Evaluation task type \u2014 drives default prompt extraction inside the container"
+        },
+        "instance_type": {
+          "type": "string",
+          "description": "SageMaker Processing instance (default: ml.m5.large)"
+        },
+        "run_name": {
+          "type": "string",
+          "description": "Optional friendly name for the MLflow run"
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "Authenticated user id \u2014 always pass CURRENT_USER_ID env var"
+        },
+        "custom_scorer_lambda_arns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "(R6) Optional list of AWS Lambda ARNs that implement the custom-scorer contract (see agent/.claude/skills/mlflow/SKILL.md \u00a7Custom Scorers). Each Lambda is invoked per evaluation row with a {inputs, outputs, expectations} payload and must return {name, score, reason?} where score is numeric. 5-second timeout per row. Non-200 responses, non-numeric scores, and invoke failures are logged and treated as null metrics \u2014 the evaluation still completes. Omit or pass [] for MLflow built-ins only."
+        }
+      },
+      "required": [
+        "thread_id",
+        "eval_dataset_s3_uri",
+        "target_model",
+        "scorers",
+        "task"
+      ]
+    }
+  },
+  {
+    "name": "submit_monitoring_job",
+    "description": "Run an Evidently drift + data-quality (+ classification-quality when labels are available) report on a completed tabular training job. Handler resolves baseline + model artifact URIs from the DDB thread row keyed on sagemaker_job_name; agent does not pass S3 URIs. Returns immediately; EventBridge callback updates the thread row on Processing-job completion.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string",
+          "description": "CURRENT_THREAD_ID."
+        },
+        "sagemaker_job_name": {
+          "type": "string",
+          "description": "Completed tabular training job (training_type=xgboost|sklearn)."
+        },
+        "current_data_s3_uri": {
+          "type": "string",
+          "description": "Optional. s3://bucket/key.csv or s3://bucket/prefix/. Mutually exclusive with use_training_eval_split."
+        },
+        "use_training_eval_split": {
+          "type": "boolean",
+          "description": "Default false. When true, handler reads jobs.<source>.eval_split_s3_uri from DDB."
+        },
+        "target_column": {
+          "type": "string",
+          "description": "Optional label column name. Enables ClassificationPreset when the column exists in the current CSV."
+        },
+        "instance_type": {
+          "type": "string",
+          "description": "Default ml.m5.large. x86_64 only."
+        },
+        "run_name": {
+          "type": "string",
+          "description": "Optional MLflow run display name."
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "CURRENT_USER_ID."
+        }
+      },
+      "required": [
+        "thread_id",
+        "sagemaker_job_name"
+      ]
+    }
+  },
+  {
+    "name": "submit_recommendation_job",
+    "description": "Run an async SageMaker AI Benchmark job that measures TTFT / inter-token latency / P99 / throughput of a trained LLM on a single specified GPU instance. Handler deploys a temporary endpoint + InferenceComponent using the training job's model artifact, benchmarks with the supplied (or default) workload spec, parses profile_export.jsonl, and tears down all created resources. Wall-clock 15\u201340 min per run; typical spend $2\u20136 for g5/g6 families. Non-LLM training types (xgboost/sklearn) rejected with a clear MCP error.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string"
+        },
+        "sagemaker_job_name": {
+          "type": "string",
+          "description": "Completed training job with training_type in {sft, dpo, grpo}."
+        },
+        "instance_type": {
+          "type": "string",
+          "description": "Single GPU instance like ml.g6.xlarge. ml.m*/ml.c*/ml.t* rejected."
+        },
+        "input_tokens": {
+          "type": "number",
+          "description": "Default 500."
+        },
+        "output_tokens": {
+          "type": "number",
+          "description": "Default 150."
+        },
+        "concurrency_levels": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Default [1,4,16]."
+        },
+        "max_latency_p99_ms": {
+          "type": "number",
+          "description": "Default 5000."
+        },
+        "max_invocations_per_minute": {
+          "type": "number",
+          "description": "Optional traffic ceiling."
+        },
+        "run_name": {
+          "type": "string"
+        },
+        "serving_image_uri": {
+          "type": "string",
+          "description": "Override the auto-derived TGI inference image. Any SageMaker-compatible LLM serving image (TGI/vLLM/LMI/Triton/custom)."
+        },
+        "serving_env": {
+          "type": "object",
+          "description": "Env vars for the serving container. When serving_image_uri is provided the caller owns this dict."
+        },
+        "_user_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "thread_id",
+        "sagemaker_job_name",
+        "instance_type"
+      ]
+    }
+  },
+  {
+    "name": "get_recommendation_results",
+    "description": "Read the benchmark outcome from the thread row. Pure DDB lookup. Safe to call mid-run \u2014 returns the current status (SUBMITTING/DEPLOYING/BENCHMARKING) without metrics while the job is still progressing. Do NOT poll; wait for the EventBridge callback ('Recommendation job X is now Completed') before calling.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string"
+        },
+        "recommender_job_name": {
+          "type": "string",
+          "description": "From the submit_recommendation_job response."
+        },
+        "_user_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "thread_id",
+        "recommender_job_name"
+      ]
+    }
+  },
+  {
+    "name": "list_recent_training_jobs",
+    "description": "List this project's recent SageMaker training jobs across ALL sessions, newest first. Use when the user references 'the most recent Completed <type> job' and the current session has no candidate \u2014 pick the newest entry with the matching training_type, then pass its sagemaker_job_name to submit_monitoring_job / submit_recommendation_job. Each entry: sagemaker_job_name, status, training_type (sft/dpo/grpo/xgboost/sklearn), dataset_name, thread_id, creation_time.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "status_equals": {
+          "type": "string",
+          "description": "SageMaker status filter (default Completed).",
+          "enum": [
+            "Completed",
+            "InProgress",
+            "Failed",
+            "Stopped"
+          ]
+        },
+        "max_results": {
+          "type": "integer",
+          "description": "Max jobs to return (default 10, cap 25)."
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "Always pass CURRENT_USER_ID."
+        }
+      },
+      "required": []
+    }
+  }
+]

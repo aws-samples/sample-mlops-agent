@@ -1,0 +1,11 @@
+*.js
+*.d.ts
+node_modules/
+*.pyc
+__pycache__/
+*.egg-info/
+dist/
+build/
+.env
+.env.local
+cdk.out/

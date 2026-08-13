@@ -1,0 +1,15 @@
+# Bandit project config — auto-discovered when bandit runs with `-r` on this
+# repo. Scoped skips for finding classes that are structural noise here;
+# per-line justified suppressions elsewhere use `# nosec <id>` comments.
+# Triage rationale: docs/security_reports/2026-07-26-probe-scan-triage.md.
+[bandit]
+# Test fixtures use literal placeholder tokens (B105/B106) and best-effort
+# cleanup blocks (B110); scanning tests for hardcoded credentials only
+# flags fixtures.
+exclude = ./tests,./node_modules,./cdk.out,./.venv,./.worktrees
+
+# B108: every flagged path is /tmp inside a Lambda or SageMaker container —
+# the only writable filesystem there (one invocation per Lambda sandbox).
+# B404: `import subprocess` in SageMaker training scripts; the call sites
+# are static pip-pin lists, individually annotated with `# nosec B603`.
+skips = B108,B404

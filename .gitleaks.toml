@@ -1,0 +1,17 @@
+# gitleaks configuration — extends the default ruleset with a documented
+# allowlist for known false positives in git history.
+[extend]
+useDefault = true
+
+# cdk/deploy.log was committed once in the initial commit
+# (2daf33d088ec814a514148972a9a5cadda49d849, 2026-04-01) and deleted from the
+# tree shortly after; *.log has been gitignored since. The three
+# generic-api-key hits inside it are Amazon Cognito PUBLIC identifiers
+# (User Pool ID us-east-1_c59CjpmCT, public app-client ID, Identity Pool ID)
+# — the exact values the frontend serves to every browser in its runtime
+# config. They are not credentials, cannot be used to authenticate, and do
+# not warrant a history rewrite. Reviewed 2026-07-26 (Probe scan
+# ProbeScanExport-867721d9). Re-evaluate if the user pool is ever replaced.
+[allowlist]
+description = "Cognito public identifiers in the deleted cdk/deploy.log (initial commit)"
+paths = ['''^cdk/deploy\.log$''']

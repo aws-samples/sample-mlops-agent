@@ -1,0 +1,25 @@
+[
+  {
+    "name": "commit_experiment",
+    "description": "Commit experiment config files to the experiment git repository.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Map of relative file path to file content string"
+        },
+        "commit_message": {
+          "type": "string",
+          "description": "Git commit message (default: Add experiment config)"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch to commit to (default: main)"
+        }
+      },
+      "required": ["files"]
+    }
+  }
+]

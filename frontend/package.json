@@ -1,0 +1,82 @@
+{
+  "name": "sample-mlops-agent-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build-skills-manifest": "node scripts/build-skills-manifest.mjs",
+    "build-tools-manifest": "node scripts/build-tools-manifest.mjs",
+    "generate": "npm run build-skills-manifest && npm run build-tools-manifest",
+    "predev": "npm run generate",
+    "prebuild": "npm run generate",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ag-ui/client": "0.0.47",
+    "@ag-ui/core": "0.0.47",
+    "@aws-crypto/sha256-browser": "^5.2.0",
+    "@aws-sdk/client-bedrock-agentcore": "^3.1105.0",
+    "@aws-sdk/client-cloudwatch": "^3.1105.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1105.0",
+    "@aws-sdk/client-dynamodb": "^3.1014.0",
+    "@aws-sdk/client-s3": "^3.1034.0",
+    "@aws-sdk/client-sagemaker": "^3.1014.0",
+    "@aws-sdk/lib-dynamodb": "^3.1014.0",
+    "@aws-sdk/s3-request-presigner": "^3.1034.0",
+    "@cloudscape-design/components": "^3.0.1237",
+    "@cloudscape-design/global-styles": "^1.0.52",
+    "@smithy/signature-v4": "^5.3.12",
+    "@tanstack/react-query": "5.91.0",
+    "aws-amplify": "^6.16.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "gray-matter": "^4.0.3",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.4"
+  },
+  "overrides": {
+    "nanoid": "3.3.17",
+    "js-yaml": "4.3.1",
+    "brace-expansion": "2.1.4",
+    "postcss": "8.5.23",
+    "form-data": "4.0.6",
+    "ws": "8.21.0",
+    "js-cookie": "3.0.7",
+    "fast-xml-parser": "5.7.0",
+    "lodash": "4.18.0",
+    "uuid": "11.1.1",
+    "micromatch": {
+      "picomatch": "2.3.2"
+    },
+    "vite": {
+      "picomatch": "2.3.2"
+    },
+    "tinyglobby": {
+      "picomatch": "4.0.4"
+    },
+    "vitest": {
+      "picomatch": "4.0.4"
+    }
+  }
+}

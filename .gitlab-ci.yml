@@ -1,0 +1,31 @@
+# CI for sample-mlops-agent — lint + unit tests on every push.
+# Functional tests (marker: functional) submit real SageMaker/Bedrock jobs
+# and are excluded here; run them manually against a deployed environment.
+stages:
+  - lint
+  - test
+
+python-lint:
+  stage: lint
+  image: python:3.12-slim
+  script:
+    - pip install --quiet -r requirements-dev.txt
+    - ruff check agent/ lambda/ tests/
+
+python-tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install --quiet -r requirements-dev.txt
+    - python -m pytest tests/ lambda/tests/ -v -m "not functional"
+
+frontend:
+  stage: test
+  image: node:20
+  script:
+    - cd frontend
+    - npm ci --no-audit --no-fund
+    # tsc needs the generated skills manifest (src/generated/skills.ts)
+    - npm run build-skills-manifest
+    - npx tsc --noEmit
+    - npx vitest run

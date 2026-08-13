@@ -1,0 +1,74 @@
+[
+  {
+    "name": "submit_slurm_job",
+    "description": "Submit a job to the Slurm HPC cluster head node via SSH. Records the job in DynamoDB and returns task_id and slurm_job_id. Runs in MOCK_MODE by default until pcluster infra is wired.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string",
+          "description": "Thread ID for this conversation (= AgentCore session_id). PK of the DynamoDB thread row."
+        },
+        "script_path": {
+          "type": "string",
+          "description": "Absolute path of the sbatch script on the head node (e.g. /home/ec2-user/jobs/train.sh)"
+        },
+        "job_name": {
+          "type": "string",
+          "description": "Slurm job name (default: <project>-job-<timestamp>)"
+        },
+        "workflow_step": {
+          "type": "string",
+          "description": "Workflow step label for multi-step pipelines (e.g. ingest, compute, validate)"
+        },
+        "_user_id": {
+          "type": "string",
+          "description": "Authenticated user id — always pass the value of the CURRENT_USER_ID env var. Stored on the DynamoDB row for attribution."
+        }
+      },
+      "required": ["thread_id", "script_path"]
+    }
+  },
+  {
+    "name": "check_slurm_job_status",
+    "description": "Poll Slurm for a job's current state via sacct and update DynamoDB. Returns the canonical status and whether it has reached a terminal state.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "task_id returned by submit_slurm_job"
+        }
+      },
+      "required": ["task_id"]
+    }
+  },
+  {
+    "name": "cancel_slurm_job",
+    "description": "Cancel a running Slurm job via scancel and mark its DynamoDB row CANCELLED.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "task_id returned by submit_slurm_job"
+        }
+      },
+      "required": ["task_id"]
+    }
+  },
+  {
+    "name": "list_slurm_jobs",
+    "description": "List Slurm jobs submitted during a session, with their current status.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "thread_id": {
+          "type": "string",
+          "description": "Thread ID for this conversation (= AgentCore session_id). PK of the DynamoDB thread row."
+        }
+      },
+      "required": ["thread_id"]
+    }
+  }
+]
