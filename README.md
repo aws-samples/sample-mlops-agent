@@ -330,50 +330,6 @@ scanner-export records are local-only under `docs/security_reports/` (gitignored
 
 ---
 
-## Composite Identity
-
-Both turns of the async agent carry **agent + user identity** via AgentCore Composite Identity. Every action is attributable to the originating Cognito user regardless of whether it happens in the interactive turn or the async EventBridge callback turn.
-
-### What was implemented
-
-**Phase 1 — Identity Plumbing**
-
-- `frontend/src/lib/credentials.ts` exposes `getCognitoSub()` to read the Cognito `sub` from the ID token
-- `frontend/src/hooks/useChat.ts` sends `user_id` in every AgentCore request body
-- `agent/main.py` reads `user_id` from the payload, sets `user.id` on every OTEL span, and exports `CURRENT_USER_ID` to skill subprocesses
-- the sagemaker submit path writes `user_id` to the DynamoDB task row — at the time this was the in-container script `agent/.claude/skills/sagemaker/scripts/submit.py`; Phase 3 below moved it to the `submit_training_job` Gateway Lambda target
-- `lambda/callback/handler.py` reads `user_id` from DynamoDB and passes `X-Amzn-Bedrock-AgentCore-Runtime-User-Id` to the Turn 2 `invoke_agent_runtime` call — so the async resume also carries the original user's identity
-
-**Phase 2 — Token Vault + Per-User HuggingFace OAuth**
-
-- `agent/main.py` calls `GetWorkloadAccessTokenForUserId` at session start and injects the token as `WORKLOAD_ACCESS_TOKEN`
-- All HuggingFace skills (`upload_model`, `hf_snapshot_download`, `retrieve_dataset_metadata`, `prepare_eval_dataset`, `update_model_card`, `manage_tags`) prefer `WORKLOAD_ACCESS_TOKEN` over the shared SSM token — per-user HuggingFace credentials, not a shared secret
-- `PatchWorkloadIdentity` CDK custom resource creates the AgentCore Workload Identity resource post-deploy
-
-**Phase 3 — Gateway + Cedar + Full Skill Migration**
-
-- All skills migrated from container scripts to Lambda-backed AgentCore Gateway targets:
-
-| Skill Lambda                           | Tools                                                                                                                                                                                                                 |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lambda/skills/sagemaker/handler.py`   | `submit_training_job`, `complete_training_job`, `deploy_model`, `list_hub_models`, `submit_eval_job`, `submit_monitoring_job`, `submit_recommendation_job`, `get_recommendation_results`, `list_recent_training_jobs` |
-| `lambda/skills/huggingface/handler.py` | `upload_model`, `hf_snapshot_download`, `retrieve_dataset_metadata`, `prepare_eval_dataset`, `update_model_card`, `manage_tags`                                                                                       |
-| `lambda/skills/git/handler.py`         | `commit_experiment`                                                                                                                                                                                                   |
-| `lambda/skills/mlflow/handler.py`      | `list_scorers`, `query_metrics`, `retrieve_traces`, `analyze_trace`, `generate_compliance_report`                                                                                                                     |
-| `lambda/skills/slurm/handler.py`       | `submit_slurm_job`, `check_slurm_job_status`, `cancel_slurm_job`, `list_slurm_jobs` (MOCK_MODE until pcluster deployed)                                                                                               |
-| `lambda/skills/web_search/handler.py`  | `web_search`, `fetch` (Nova Web Grounding + DuckDuckGo fallback)                                                                                                                                                      |
-| `lambda/skills/hyperpod/handler.py`    | `list_nodes`, `check_versions` (read-only cluster audit)                                                                                                                                                              |
-
-- `lambda/interceptor/handler.py` — Gateway interceptor extracts `_user_id` from tool arguments and injects `_injected_user_id` into Cedar evaluation context on every tool call
-- `cdk/lib/stacks/backend/gateway-stack.ts` — CDK construct deploying the Gateway, all skill Lambda targets, the interceptor, and the M2M client credentials (Secrets Manager)
-- `agent/main.py` acquires a Cognito M2M token (`client_credentials` grant) and writes the Gateway MCP URL + token into the Claude Code settings file before each session, so the agent subprocess routes all skill calls through the Gateway
-
-**Auth mode:** IAM SigV4 is retained for AgentCore invocations. The `X-Amzn-Bedrock-AgentCore-Runtime-User-Id` header is purpose-built for IAM-authenticated callers (like the callback Lambda) that need to act on behalf of a user — switching to JWT Bearer Token auth would break the async callback flow.
-
-See `docs/plans/implemented/2026-04-08-composite-identity-design.md` for the architecture rationale and `docs/plans/implemented/2026-04-15-composite-identity-test-plan.md` for the verification test plan.
-
----
-
 ## Observability & Evaluations
 
 The agent container ships with full OpenTelemetry instrumentation — traces, logs, and GenAI semantic conventions — enabled at deploy time. Two Jupyter notebooks in `notebooks/` let you explore and score agent interactions.
