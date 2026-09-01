@@ -1,4 +1,4 @@
-mlflow[genai]==3.11.1
+mlflow[genai]==3.15.2
 # LiteLLM is NOT pulled in by mlflow[genai] in 3.x, but MLflow's
 # invoke_judge_model prefers LiteLLM when available and otherwise falls
 # through to the legacy AI-Gateway/Bedrock adapter which reads
