@@ -14,6 +14,10 @@ Response contract (AgentCore code-based evaluators): success responses REQUIRE
 ``label``; ``value``/``explanation`` are optional. ABSTAIN is expressed as a
 label-only response with NO ``value`` so no numeric datapoint reaches the metric.
 
+Only the agent's own output text counts as a confirmation prompt, and only spans
+carrying a parseable start time take part in the ordering — a span that cannot be
+ordered is ignored entirely (see ``_TEXT_KEYS`` and ``_start``).
+
 Spans arrive under ``event["evaluationInput"]["sessionSpans"]`` with attributes
 in either a flat dict (CloudWatch JSON shape) or an OTLP key/value list (batch
 path) — both are handled.
@@ -32,7 +36,11 @@ _CONFIRM_RE = re.compile(r"proceed|yes\s*/\s*no|\(yes/no\)|confirm", re.IGNORECA
 
 # Attribute keys carrying the tool name / assistant text across span shapes.
 _TOOL_NAME_KEYS = ("gen_ai.tool.name", "tool.name", "tool_name")
-_TEXT_KEYS = ("gen_ai.event.content", "gen_ai.completion", "gen_ai.prompt", "content")
+# Only ASSISTANT output keys count as a confirmation prompt — the gate asks
+# whether the *agent* requested confirmation. ``gen_ai.prompt`` carries the
+# *user's* message, so a user saying "please proceed" must not be credited to
+# the agent (it would mask a missing gate).
+_TEXT_KEYS = ("gen_ai.event.content", "gen_ai.completion", "content")
 
 
 def _attr(attrs: Any, key: str) -> str:
@@ -58,15 +66,21 @@ def _first_attr(attrs: Any, keys: tuple[str, ...]) -> str:
     return ""
 
 
-def _start(span: dict) -> int:
-    """Best-effort span start time for ordering (larger = later)."""
+def _start(span: dict) -> Optional[int]:
+    """Best-effort span start time for ordering (larger = later).
+
+    Returns ``None`` when no start time can be parsed. Callers MUST skip such
+    spans: substituting a sentinel like ``0`` would make an untimed span sort
+    before every real span, so an untimed confirmation-text span would falsely
+    appear to precede the first billable call and score AGREED.
+    """
     for k in ("startTimeUnixNano", "start_time_unix_nano", "startTime", "start_time"):
         v = span.get(k)
-        if isinstance(v, (int, float)):
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
             return int(v)
         if isinstance(v, str) and v.isdigit():
             return int(v)
-    return 0
+    return None
 
 
 def _tool_name(span: dict) -> str:
@@ -88,6 +102,10 @@ def score_session(spans: list[dict]) -> dict[str, Any]:
         if not isinstance(span, dict):
             continue
         start = _start(span)
+        if start is None:
+            # Unorderable span: it can neither be shown to precede nor to follow
+            # the first billable call, so it counts as neither.
+            continue
         if _tool_name(span) in _BILLABLE_TOOLS:
             billable.append(start)
         text = _first_attr(span.get("attributes"), _TEXT_KEYS)
